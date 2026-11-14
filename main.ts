@@ -1,4 +1,4 @@
-// free-model-aggregator-01 entry point: one HTTP server, three upstream wires, rating-ranked routing with failover.
+// free-model-aggregator-01 entry point: a single HTTP server fronting three upstream wire formats, with rating-ranked routing and failover.
 //
 // Startup: probe every provider's catalog, register, then answer the client's 20 requests. Each request
 // goes to the best-rated free model that satisfies its requirements and still has budget; when an upstream

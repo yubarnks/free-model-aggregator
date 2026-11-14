@@ -1,4 +1,4 @@
-// Translation between the Gemini wire and OpenAI Chat Completions (request and answer shapes).
+// Converts between the Gemini wire and OpenAI Chat Completions request and answer shapes.
 import { isRecord, type Json } from './providers.ts';
 
 function textOf(content: unknown): string {
@@ -30,7 +30,7 @@ function openAIParametersToGeminiSchema(schema: unknown): Json | null {
   return out;
 }
 
-/** Turn an OpenAI Chat Completions request into a Gemini generateContent body naming `model`. */
+/** Translate an OpenAI Chat Completions request to a Gemini generateContent body naming `model`. */
 export function openAIToGemini(body: Json): Json {
   const contents: Json[] = [];
   const systemParts: Json[] = [];
@@ -169,7 +169,7 @@ export function geminiToAnthropic(answer: GeminiAnswer, model: string): Json {
         const parsed: unknown = JSON.parse(call.function.arguments);
         if (isRecord(parsed)) input = parsed;
       } catch {
-        // leave {}
+        // keep {} as an empty input
       }
     }
     content.push({

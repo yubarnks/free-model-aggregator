@@ -1,4 +1,4 @@
-// The client wires and the one upstream wire this baseline speaks.
+// The client wires and the single upstream wire this baseline speaks.
 //
 // The trial's client calls the entry as an OpenAI service (POST /v1/chat/completions) or an Anthropic one
 // (POST /v1/messages), with a JSON body or with server-sent events. This baseline forwards both to a
@@ -99,7 +99,7 @@ function argumentsOf(value: unknown): Json {
       const parsed: unknown = JSON.parse(value);
       if (isRecord(parsed)) return parsed;
     } catch {
-      // Not JSON: an empty input.
+      // Not JSON: an empty input object.
     }
   }
   return {};

@@ -1,4 +1,4 @@
-// The brief's three documents and the catalog probe.
+// The brief's three documents and the catalog probing.
 //
 // A trial's brief (the path in MAKEFUN_PROMPT_FILE) carries three JSON documents, and the prose around
 // them does not matter: this file finds each by its `schema` member.
@@ -69,7 +69,7 @@ export interface CatalogProvider {
   models: CatalogModel[];
 }
 
-/** What `--list` prints and what the entry POSTs to /register: the same document, byte for byte. */
+/** What `--list` prints and what the entry POSTs to /register: the identical document, byte for byte. */
 export interface CatalogReport {
   providers: CatalogProvider[];
 }
@@ -177,7 +177,7 @@ function documentsIn(text: string): Json[] {
       const value: unknown = JSON.parse(text.slice(start, end + 1));
       if (isRecord(value) && typeof value.schema === 'string') out.push(value);
     } catch {
-      // Not JSON on its own: look on.
+      // Not standalone JSON: continue looking.
     }
   }
   return out;

@@ -259,7 +259,7 @@ function stopReasonOfFinish(finish: unknown): string {
   return 'stop';
 }
 
-/** An OpenAI Chat Completions answer's text, finish reason and usage, from JSON or SSE text. */
+/** Parse an OpenAI Chat Completions answer (JSON or SSE) into its text, finish reason, usage and tool calls. */
 function openAIAnswerOf(text: string, stream: boolean): { text: string; finish: string | null; input: number | null; output: number | null; toolCalls: Json[] } | null {
   if (!stream) {
     let value: unknown;

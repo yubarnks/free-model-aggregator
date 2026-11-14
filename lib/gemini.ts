@@ -1,4 +1,4 @@
-// Gemini wire <-> OpenAI Chat Completions translation (request and answer shapes).
+// Translation between the Gemini wire and OpenAI Chat Completions (request and answer shapes).
 import { isRecord, type Json } from './providers.ts';
 
 function textOf(content: unknown): string {
@@ -30,7 +30,7 @@ function openAIParametersToGeminiSchema(schema: unknown): Json | null {
   return out;
 }
 
-/** An OpenAI Chat Completions request as a Gemini generateContent body naming `model`. */
+/** Turn an OpenAI Chat Completions request into a Gemini generateContent body naming `model`. */
 export function openAIToGemini(body: Json): Json {
   const contents: Json[] = [];
   const systemParts: Json[] = [];
@@ -89,7 +89,7 @@ export function openAIToGemini(body: Json): Json {
   return out;
 }
 
-/** A Gemini generateContent answer's text, tool calls, finish reason and usage. */
+/** A Gemini generateContent answer's text, tool calls, finish reason, and usage. */
 export interface GeminiAnswer {
   text: string;
   toolCalls: Json[];
@@ -138,7 +138,7 @@ export function geminiAnswerOf(body: Json): GeminiAnswer {
   };
 }
 
-/** A Gemini answer as an OpenAI Chat Completions object. */
+/** A Gemini answer shaped as an OpenAI Chat Completions object. */
 export function geminiToOpenAI(answer: GeminiAnswer, model: string): Json {
   const message: Json = { role: 'assistant', content: answer.text };
   if (answer.toolCalls.length > 0) message.tool_calls = answer.toolCalls;
@@ -157,7 +157,7 @@ export function geminiToOpenAI(answer: GeminiAnswer, model: string): Json {
   };
 }
 
-/** A Gemini answer as an Anthropic Messages object. */
+/** A Gemini answer shaped as an Anthropic Messages object. */
 export function geminiToAnthropic(answer: GeminiAnswer, model: string): Json {
   const content: Json[] = [];
   if (answer.text !== '') content.push({ type: 'text', text: answer.text });
@@ -169,7 +169,7 @@ export function geminiToAnthropic(answer: GeminiAnswer, model: string): Json {
         const parsed: unknown = JSON.parse(call.function.arguments);
         if (isRecord(parsed)) input = parsed;
       } catch {
-        // keep {}
+        // leave {}
       }
     }
     content.push({
@@ -194,7 +194,7 @@ export function geminiToAnthropic(answer: GeminiAnswer, model: string): Json {
   };
 }
 
-/** A Gemini streamed answer (SSE frames of JSON chunks) as an OpenAI Chat Completions event stream. */
+/** A streamed Gemini answer (SSE frames of JSON chunks) converted to an OpenAI Chat Completions event stream. */
 export function geminiStreamToOpenAI(upstream: ReadableStream<Uint8Array>, model: string): ReadableStream<Uint8Array> {
   const decoder = new TextDecoder();
   const encoder = new TextEncoder();
@@ -268,7 +268,7 @@ export function geminiStreamToOpenAI(upstream: ReadableStream<Uint8Array>, model
   return stream;
 }
 
-/** A Gemini streamed answer as an Anthropic Messages event sequence (a string of SSE events). */
+/** A streamed Gemini answer as an Anthropic Messages event sequence (a string of SSE events). */
 export async function geminiStreamToAnthropic(upstream: ReadableStream<Uint8Array>, model: string): Promise<string> {
   const decoder = new TextDecoder();
   let buffer = '';

@@ -1,11 +1,11 @@
 // free-model-aggregator-01 entry: one Node server exposing OpenAI and Anthropic client wires over a best-free-model routing layer with retry-aware provider failover
 //
-// Startup: probe every provider's catalog, register, then answer the client's 20 requests. Each request
+// Startup: probe every provider catalog, register with the harness, then answer the client's 20 manifest requests.
 // goes to the best-rated free model that satisfies its requirements and still has budget; when an upstream
 // answers 402 / 429 / 5xx, fail over to the next candidate. The reply comes back in whatever wire the
 // client spoke (JSON or SSE), keeping the provider's stop reason, usage and echo text intact.
 //
-// Deterministic: no wall clock and no randomness; every decision is a function of the brief and the
+// Deterministic throughout: no wall clock, no randomness; every decision is a pure function of the brief and
 // providers' answers. GET /v1/models replies in the wire named by the auth header. `main.ts --list`
 // emits the exact catalog the register body carries, byte for byte.
 

@@ -1,13 +1,13 @@
-// free-model-aggregator-01 entry: one server, three upstream wires, rating-ranked routing with failover.
+// free-model-aggregator-01 entry point: one HTTP server, three upstream wires, rating-ranked routing with failover.
 //
-// Build: probe every provider's catalog, register, then answer the client's 20 requests. Each request
-// is routed to the highest-rated free model that meets its requirements and still has budget; a 402 /
-// 429 / 5xx upstream answer fails over to the next candidate. The answer comes back in the wire the
-// client used, JSON or SSE, with the provider's stop reason, usage and echo text whole.
+// Startup: probe every provider's catalog, register, then answer the client's 20 requests. Each request
+// goes to the best-rated free model that satisfies its requirements and still has budget; when an upstream
+// answers 402 / 429 / 5xx, fail over to the next candidate. The reply comes back in whatever wire the
+// client spoke (JSON or SSE), keeping the provider's stop reason, usage and echo text intact.
 //
-// Deterministic: no wall clock, no randomness; every choice is a function of the brief and the
-// providers' answers. GET /v1/models answers in the wire the auth header names. `main.ts --list`
-// prints the same catalog the register body carries, byte for byte.
+// Deterministic: no wall clock and no randomness; every decision is a function of the brief and the
+// providers' answers. GET /v1/models replies in the wire named by the auth header. `main.ts --list`
+// emits the exact catalog the register body carries, byte for byte.
 
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import {
@@ -76,7 +76,7 @@ async function load(): Promise<void> {
 
 const byId = (a: ProbedModel, b: ProbedModel): number => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
 
-/** The free models across the providers that answered: what GET /v1/models lists. */
+/** The free models the responding providers serve, which is what GET /v1/models lists. */
 function servedModels(): ServedModel[] {
   const out: ServedModel[] = [];
   for (const probe of probes) {
@@ -96,7 +96,7 @@ interface Route {
   row: RatingRow | null;
 }
 
-/** The candidate routes for one request's requirements, best-rated first, ties broken by provider order. */
+/** Candidate routes for a request's requirements, best-rated first, ties resolved by provider order. */
 function candidatesFor(requires: Requirement): Route[] {
   const out: Route[] = [];
   for (const probe of probes) {
@@ -121,9 +121,9 @@ function candidatesFor(requires: Requirement): Route[] {
 }
 
 /**
- * Pick one candidate: the best-rated one whose provider has calls left in its observed budget. A
- * provider that has refused with 402 or on its outage is never picked again this trial; a 429 one is
- * tried after the others (its budget may simply be spent in order).
+ * Choose one candidate: the best-rated one whose provider still has budget left in this trial. A
+ * provider that refused with 402 or an outage is skipped for the rest of the trial; a 429 is retried
+ * only after the others (its budget may simply be spent in order).
  */
 const refusedHard = new Set<string>(); // provider ids refused with 402 / outage / repeated failures
 const callCount = new Map<string, number>(); // provider id -> successful + failed counted calls this trial
@@ -131,7 +131,7 @@ const callCount = new Map<string, number>(); // provider id -> successful + fail
 function pickRoute(requires: Requirement): Route | null {
   const candidates = candidatesFor(requires);
   if (candidates.length === 0) return null;
-  // Prefer candidates on providers we believe still have budget, then the rest in rating order.
+  // Favor candidates whose providers appear to still have budget, then the rest in rating order.
   const fresh = candidates.filter((c) => !refusedHard.has(c.probe.provider.id));
   return fresh[0] ?? candidates[0];
 }
@@ -204,7 +204,7 @@ interface UpstreamJson {
   text: string;
 }
 
-/** One upstream call in the provider's own wire. Returns the raw status and body text. */
+/** A single upstream call in the provider's own wire, returning the raw status and body text. */
 async function callUpstream(route: Route, clientBody: Json, clientApi: 'openai' | 'anthropic'): Promise<UpstreamJson> {
   const provider = route.probe.provider;
   const base = joinBase(ENV_URL, provider.base);
@@ -222,7 +222,7 @@ async function callUpstream(route: Route, clientBody: Json, clientApi: 'openai' 
   } else if (provider.wire === 'anthropic') {
     url = `${base}/v1/messages`;
     const anthropic: Json = clientApi === 'anthropic' ? { ...clientBody, model: route.model.id } : anthropicToOpenAI(clientBody, route.model.id);
-    // clientApi openai -> anthropic provider: convert the OpenAI body to Anthropic.
+    // When the client is OpenAI but the provider is Anthropic, translate the OpenAI body over.
     const converted = clientApi === 'anthropic' ? anthropic : openAIToAnthropicRequest(clientBody, route.model.id);
     converted.stream = stream;
     body = JSON.stringify(converted);
@@ -283,7 +283,7 @@ function openAIAnswerOf(text: string, stream: boolean): { text: string; finish: 
       toolCalls,
     };
   }
-  // SSE: gather the chunks.
+  // SSE: collect the chunks.
   let out = '';
   let finish: string | null = null;
   let input: number | null = null;
@@ -482,7 +482,7 @@ function deliver(res: ServerResponse, api: 'openai' | 'anthropic', route: Route,
       if (answer === null || answer.input === null) return false;
       return emitAnswer(res, api, stream, answer.text, answer.finish, answer.input, answer.output, answer.toolCalls, route.model.id);
     }
-    // gemini
+    // Gemini provider.
     const answer = stream ? geminiSseBodyToAnswer(upstreamText) : (geminiAnswerOf(safeParse(upstreamText)) ?? null);
     if (answer === null || answer.input === null) return false;
     const finish = answer.finish === null ? 'stop' : answer.finish;
@@ -550,7 +550,7 @@ function emitAnswer(
     res.end(out);
     return true;
   }
-  // Anthropic client.
+  // The client is Anthropic.
   const stopReason = FINISH_TO_OPENAI[outFinish] === 'stop' ? 'end_turn' : FINISH_TO_OPENAI[outFinish] === 'length' ? 'max_tokens' : FINISH_TO_OPENAI[outFinish] === 'tool_calls' ? 'tool_use' : 'refusal';
   const outTokens = output ?? Math.max(1, Math.ceil(text.length / 4));
   if (!stream) {
@@ -749,7 +749,7 @@ function poll(server: Server): void {
           process.exit(0);
         }
       } catch {
-        // The env is not reachable yet: try again on the next tick.
+        // The env is not reachable yet: retry on the next tick.
       } finally {
         inFlight = false;
       }

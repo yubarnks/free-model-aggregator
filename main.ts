@@ -1,4 +1,4 @@
-// free-model-aggregator-01: one server, two client wires, best-free-model routing with retry-aware failover
+// free-model-aggregator-01 entry: one Node server exposing OpenAI and Anthropic client wires over a best-free-model routing layer with retry-aware provider failover
 //
 // Startup: probe every provider's catalog, register, then answer the client's 20 requests. Each request
 // goes to the best-rated free model that satisfies its requirements and still has budget; when an upstream
